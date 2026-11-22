@@ -33,6 +33,7 @@ gem "bootsnap", require: false
 gem "image_processing", "~> 1.2"
 
 group :development, :test do
+  gem "factory_bot_rails", "~> 6.5"
   gem "rspec-rails", "~> 8.1"
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
@@ -50,6 +51,7 @@ end
 group :test do
   gem "capybara", "~> 3.40"
   gem "selenium-webdriver", "~> 4.0"
+  gem "webmock", "~> 3.0"
 end
 
 group :development do

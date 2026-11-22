@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_22_020500) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_22_160000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -38,17 +38,81 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_020500) do
     t.datetime "email_last_sent", default: -> { "CURRENT_TIMESTAMP" }, null: false
   end
 
-  create_table "accounts", force: :cascade do |t|
+  create_table "addresses", force: :cascade do |t|
+    t.bigint "customer_id", null: false
+    t.string "label"
+    t.string "line1", null: false
+    t.string "line2"
+    t.string "city", null: false
+    t.string "region"
+    t.string "postal_code"
+    t.string "country_code", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["customer_id"], name: "index_addresses_on_customer_id"
+  end
+
+  create_table "customers", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "email"
+    t.string "phone"
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "products", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "sku", null: false
+    t.text "description"
+    t.decimal "unit_price", precision: 12, scale: 2, null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["sku"], name: "index_products_on_sku", unique: true
+    t.check_constraint "unit_price >= 0::numeric", name: "products_nonnegative_price"
+  end
+
+  create_table "sales_order_items", force: :cascade do |t|
+    t.bigint "sales_order_id", null: false
+    t.bigint "product_id", null: false
+    t.integer "quantity", default: 1, null: false
+    t.decimal "unit_price", precision: 12, scale: 2, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["product_id"], name: "index_sales_order_items_on_product_id"
+    t.index ["sales_order_id"], name: "index_sales_order_items_on_sales_order_id"
+    t.check_constraint "quantity > 0", name: "sales_order_items_positive_quantity"
+    t.check_constraint "unit_price >= 0::numeric", name: "sales_order_items_nonnegative_price"
+  end
+
+  create_table "sales_orders", force: :cascade do |t|
+    t.bigint "customer_id", null: false
+    t.string "status", default: "draft", null: false
+    t.date "ordered_on", null: false
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["customer_id"], name: "index_sales_orders_on_customer_id"
+    t.check_constraint "status::text = ANY (ARRAY['draft'::character varying, 'confirmed'::character varying, 'completed'::character varying, 'cancelled'::character varying]::text[])", name: "sales_orders_valid_status"
+  end
+
+  create_table "users", force: :cascade do |t|
     t.integer "status", default: 1, null: false
     t.citext "email", null: false
     t.string "password_hash"
     t.boolean "admin", default: false, null: false
-    t.index ["email"], name: "index_accounts_on_email", unique: true, where: "(status = ANY (ARRAY[1, 2]))"
+    t.string "name"
+    t.index ["email"], name: "index_users_on_email", unique: true, where: "(status = ANY (ARRAY[1, 2]))"
     t.check_constraint "email = 'admin'::citext OR email ~ '^[^,;@ \r\n]+@[^,@; \r\n]+[.][^,@; \r\n]+$'::citext", name: "valid_email"
   end
 
-  add_foreign_key "account_login_change_keys", "accounts", column: "id"
-  add_foreign_key "account_password_reset_keys", "accounts", column: "id"
-  add_foreign_key "account_remember_keys", "accounts", column: "id"
-  add_foreign_key "account_verification_keys", "accounts", column: "id"
+  add_foreign_key "account_login_change_keys", "users", column: "id"
+  add_foreign_key "account_password_reset_keys", "users", column: "id"
+  add_foreign_key "account_remember_keys", "users", column: "id"
+  add_foreign_key "account_verification_keys", "users", column: "id"
+  add_foreign_key "addresses", "customers"
+  add_foreign_key "sales_order_items", "products"
+  add_foreign_key "sales_order_items", "sales_orders"
+  add_foreign_key "sales_orders", "customers"
 end

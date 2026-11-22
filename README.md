@@ -2,7 +2,8 @@
 
 Rails 8.1.4.1 with PostgreSQL, Rodauth, Avo, Redis-backed Sidekiq, Vite, SCSS,
 Turbo/Stimulus, and RSpec. The application namespace is `Rails8Avo`; models remain
-top-level classes such as `Account`.
+top-level classes such as `User`, `Customer`, `Address`, `Product`, `SalesOrder`,
+and `SalesOrderItem`. Avo provides the CRM UI; there is no separate custom frontend.
 
 ## Local development
 
@@ -16,10 +17,40 @@ bin/dev
 ```
 
 Rails runs at http://localhost:3000 and Vite at http://localhost:3036.
-Avo (`/`, with accounts at `/resources/accounts`) and Sidekiq (`/sidekiq`)
-require an authenticated account with `admin: true`. The initial database seed
-creates the demonstration login `admin` / `admin`; change its password before
-allowing access from outside your development machine.
+Avo (`/`) opens the customers resource. Verified users can manage shared CRM
+records; users (`/resources/users`) and Sidekiq (`/sidekiq`) are admin-only.
+User resource mutations and search endpoints also enforce this restriction.
+
+The development seed creates the demonstration login `admin` / `admin`. Export
+`ADMIN_PASSWORD` before the first seed to choose another password; production
+requires it. Reseeding never resets an existing password or reopens a closed user.
+Change demonstration credentials before allowing access outside your machine.
+
+Public registration is disabled by default: an administrator creates staff users
+through Avo. Set `ALLOW_PUBLIC_REGISTRATION=true` only if self-registration is
+intentional: any registrant who verifies their email can access the shared CRM.
+Explicit logout revokes the stored remember token as well as the browser cookie.
+
+## Basic CRM and API
+
+Customers have multiple addresses and sales orders. Products have unique SKUs and
+nonnegative prices. Add order lines through Avo's association panel or the sales
+order items resource. Each line stores its own unit price, defaulting to the product
+price when created; later catalog price changes do not rewrite existing lines.
+Totals use decimal arithmetic. This is a single-currency starting point without
+inventory, taxes, invoicing, or payment processing. Customers/products referenced by
+orders cannot be deleted; use product deactivation or order cancellation instead.
+
+`GET /api/v1/health` is a public, non-cacheable JSON liveness endpoint:
+
+```json
+{"status":"ok","service":"rails-8-avo","api_version":"v1"}
+```
+
+`/up` remains available. Neither endpoint checks database or Redis readiness.
+The API starts under `Api::V1`; CRM API CRUD/authentication are not exposed yet.
+Webhooks and GraphQL are excluded. Existing accounts and authentication keys are
+preserved by the migration to the ordinary `users` table.
 
 Development emails are written to `tmp/mails`, not delivered externally.
 See `.env.example` for settings; export them in your shell. Rails does not
@@ -55,10 +86,38 @@ RAILS_ENV=test bin/rails zeitwerk:check
 bin/brakeman --no-pager
 ```
 
-Request and browser specs exercise real Rodauth routes, database records,
-password hashing, and verification/reset links from delivered test emails.
-Test mail is never sent externally. CI installs frontend dependencies, runs
-request and browser specs, and checks production asset compilation.
+Model, request and browser specs exercise real Rodauth routes, database records,
+password hashing, delivered test emails, Avo forms, permissions, and order totals.
+FactoryBot provides `build(:user)`, `create(:user, :admin)` and CRM factories.
+The suite also checks eager loading and remember-cookie restoration/expiry/replay.
+Test mail is never sent externally. CI builds the frontend and runs the full suite.
+
+WebMock deliberately uses `allow_net_connect!(allow_localhost: true)`: real Ruby
+HTTP calls are permitted and recorded, not blocked. Use `a_request` matchers to
+assert them, or stub a specific third-party boundary when deterministic responses
+are needed. WebMock does not intercept Chrome's own network traffic. The retry
+integration spec uses a real localhost HTTP server, with no external credentials.
+Do not configure tests with production API credentials.
+
+## Exception handling
+
+`HandleExceptionsService` preserves successful return values and re-raises failures
+unless suppression is explicitly requested. It rescues `StandardError`, never
+`Interrupt` or `SystemExit`. Retries are finite and limited to named error types:
+
+```ruby
+HandleExceptionsService.new(
+  message: "Fetch remote status", max_tries: 3,
+  retry_on: [Net::OpenTimeout, Net::ReadTimeout], wait: 0.1
+).perform { client.fetch_status }
+```
+
+Only retry idempotent operations. `on_exception` and `before_retry` callbacks receive
+`(exception, attempt_number)`; callback failures propagate. `skip_raise` accepts a
+boolean or predicate, and `return_exception: true` returns failure context only when
+suppression is enabled. Logs filter sensitive detail keys and omit raw exception
+messages. `DetailedError` can attach structured details to a business failure.
+No provider-specific APIs or sales-portal logging/database machinery are required.
 
 ## Deferred security blocker
 

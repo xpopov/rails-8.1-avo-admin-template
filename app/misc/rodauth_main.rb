@@ -11,14 +11,23 @@ class RodauthMain < Rodauth::Rails::Auth
     # See the Rodauth documentation for the list of available config options:
     # http://rodauth.jeremyevans.net/documentation.html
 
+    before_create_account_route do
+      unless ENV["ALLOW_PUBLIC_REGISTRATION"] == "true"
+        request.halt [ 404, { "content-type" => "text/plain" }, [ "Not found" ] ]
+      end
+    end
+    login_form_footer_links do
+      super().reject { |_, path, _| path == create_account_path && ENV["ALLOW_PUBLIC_REGISTRATION"] != "true" }
+    end
+
     # ==> General
     # Initialize Sequel and have it reuse Active Record's database connection.
     db Sequel.postgres(extensions: :activerecord_connection, keep_reference: false)
     # Avoid DB query that checks accounts table schema at boot time.
-    convert_token_id_to_integer? { Account.columns_hash["id"].type == :integer }
+    convert_token_id_to_integer? { User.columns_hash["id"].type == :integer }
 
     # Change prefix of table and foreign key column names from default "account"
-    # accounts_table :users
+    accounts_table :users
     # verify_account_table :user_verification_keys
     # verify_login_change_table :user_login_change_keys
     # reset_password_table :user_password_reset_keys
@@ -110,6 +119,8 @@ class RodauthMain < Rodauth::Rails::Auth
     # ==> Remember Feature
     # Remember all logged in users.
     after_login { remember_login }
+    # Revoke the stored token too, so a copied remember cookie cannot restore a logged-out session.
+    before_logout { remove_remember_key(session_value) if logged_in? }
 
     # Or only remember users that have ticked a "Remember Me" checkbox on login.
     # after_login { remember_login if param_or_nil("remember") }
