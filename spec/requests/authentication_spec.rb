@@ -1,9 +1,9 @@
 require "rails_helper"
 
-RSpec.describe "Authentication", type: :request do
+RSpec.describe "Authentication", type: :request, public_registration: true do
   let(:password) { "correct-horse-battery-staple" }
   let(:new_password) { "another-secure-password" }
-  let(:account) { Account.create!(email: "person@example.com", status: :verified, password: password) }
+  let(:account) { User.create!(email: "person@example.com", status: :verified, password: password) }
 
   def registration_params
     {
@@ -21,7 +21,7 @@ RSpec.describe "Authentication", type: :request do
       post "/create-account", params: registration_params.merge(admin: true, status: "verified")
     end
 
-    registered = Account.find_by!(email: "new@example.com")
+    registered = User.find_by!(email: "new@example.com")
     expect(registered).to be_unverified
     expect(registered).not_to be_admin
     expect(ActionMailer::Base.deliveries.last.to).to eq([ registered.email ])
@@ -43,7 +43,7 @@ RSpec.describe "Authentication", type: :request do
     it "rejects registration with #{description}" do
       expect do
         post "/create-account", params: registration_params.merge(overrides)
-      end.not_to change(Account, :count)
+      end.not_to change(User, :count)
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(enqueued_jobs).to be_empty
@@ -55,7 +55,7 @@ RSpec.describe "Authentication", type: :request do
 
     expect do
       post "/create-account", params: registration_params.merge(email: email)
-    end.not_to change(Account, :count)
+    end.not_to change(User, :count)
 
     expect(response).to have_http_status(:unprocessable_content)
   end
@@ -68,7 +68,7 @@ RSpec.describe "Authentication", type: :request do
     get "/verify-account", params: { key: "#{key}tampered" }
     post "/verify-account", params: { key: "#{key}tampered" }
 
-    expect(Account.find_by!(email: "new@example.com")).to be_unverified
+    expect(User.find_by!(email: "new@example.com")).to be_unverified
   end
 
   it "resets a password using the delivered email and invalidates the old password" do
@@ -96,7 +96,7 @@ RSpec.describe "Authentication", type: :request do
   it "does not reset a password with an expired token" do
     perform_enqueued_jobs { post "/reset-password-request", params: { email: account.email } }
     path = authentication_email_path("/reset-password")
-    Account.connection.execute("UPDATE account_password_reset_keys SET deadline = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE id = #{account.id}")
+    User.connection.execute("UPDATE account_password_reset_keys SET deadline = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE id = #{account.id}")
 
     follow_authentication_link(path)
     post "/reset-password", params: { password: new_password, "password-confirm": new_password }
@@ -111,7 +111,7 @@ RSpec.describe "Authentication", type: :request do
       perform_enqueued_jobs do
         post "/reset-password-request", params: { email: "unknown@example.com" }
       end
-    end.not_to change(Account, :count)
+    end.not_to change(User, :count)
 
     expect(ActionMailer::Base.deliveries).to be_empty
   end
@@ -139,7 +139,7 @@ RSpec.describe "Authentication", type: :request do
     post "/login", params: { email: account.email, password: password }
 
     expect(response).not_to have_http_status(:redirect)
-    get "/resources/accounts"
+    get "/resources/users"
     expect(response).to redirect_to("/login")
   end
 
@@ -149,5 +149,31 @@ RSpec.describe "Authentication", type: :request do
     }
 
     expect(response).to redirect_to("/login")
+  end
+  it "restores a user from a valid remember cookie without the browser session" do
+    post "/login", params: { email: account.email, password: password }
+    expect(cookies["_remember"]).to be_present
+    cookies.delete(Rails.application.config.session_options[:key])
+    get "/resources/customers"
+    expect(response).to have_http_status(:ok)
+  end
+
+  it "rejects an expired remember cookie" do
+    post "/login", params: { email: account.email, password: password }
+    cookies.delete(Rails.application.config.session_options[:key])
+    User.connection.execute("UPDATE account_remember_keys SET deadline = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE id = #{account.id}")
+    get "/resources/customers"
+    expect(response).to redirect_to("/login")
+  end
+
+  it "rejects replaying a remember cookie after explicit logout" do
+    post "/login", params: { email: account.email, password: password }
+    token = cookies["_remember"]
+    post "/logout"
+    another_browser = open_session
+    another_browser.cookies["_remember"] = token
+    another_browser.get "/resources/customers"
+    expect(another_browser.response).to have_http_status(:redirect)
+    expect(URI(another_browser.response.location).path).to eq("/login")
   end
 end

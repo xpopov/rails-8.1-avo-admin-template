@@ -1,10 +1,11 @@
 Avo.configure do |config|
   config.root_path = "/"
   config.app_name = "rails-8-avo"
+  config.home_path = "/resources/customers"
   config.authenticate_with do
     if !rodauth.authenticated?
       redirect_to rodauth.login_path
-    elsif !rodauth.rails_account&.admin?
+    elsif !rodauth.rails_account&.verified? || (resource_name == "users" && !rodauth.rails_account.admin?)
       head :forbidden
     end
   end

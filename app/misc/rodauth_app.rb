@@ -12,7 +12,7 @@ class RodauthApp < Rodauth::Rails::App
 
     r.on "sidekiq" do
       rodauth.require_authentication
-      r.halt [ 403, { "content-type" => "text/plain" }, [ "Forbidden" ] ] unless rodauth.rails_account.admin?
+      r.halt [ 403, { "content-type" => "text/plain" }, [ "Forbidden" ] ] unless rodauth.rails_account&.verified? && rodauth.rails_account.admin?
     end
 
     # ==> Secondary configurations
