@@ -7,6 +7,91 @@ RSpec.describe "CRM", type: :request do
     end
   end
 
+  it "keeps addresses and order items out of the standalone navigation" do
+    sign_in_user(create(:user, :admin))
+    get "/resources/customers"
+    page = Nokogiri::HTML(response.body)
+    expect(page.at_css('a[href="/resources/addresses"]')).to be_nil
+    expect(page.at_css('a[href="/resources/sales_order_items"]')).to be_nil
+    expect(page.at_css('a[href="/resources/sales_orders"]')).to be_present
+  end
+
+  {
+    customer: [ "customers", "customer", %w[Details Addresses Sales\ orders], "name" ],
+    sales_order: [ "sales_orders", "sales_order", [ "Details", "Order items" ], "ordered_on" ]
+  }.each do |factory, (resource, group_id, titles, attribute)|
+    [ "", "/edit" ].each do |suffix|
+      it "shows Details first and related tabs on #{resource} #{suffix.presence || 'show'}" do
+        sign_in_user
+        record = create(factory)
+        get "/resources/#{resource}/#{record.id}#{suffix}"
+        expect(response).to have_http_status(:ok)
+        page = Nokogiri::HTML(response.body)
+        group = page.at_css("[data-tabs-group-id-value='#{group_id}']")
+        expect(group).to be_present
+        expect(group["data-tabs-active-tab-value"]).to eq("Details")
+        expect(group.css('[role="tablist"]').first.css('[role="tab"]').map(&:text).map(&:strip)).to eq(titles)
+        if suffix == "/edit"
+          expect(group.at_css("[data-tab-id='Details'] [name='#{factory}[#{attribute}]']")).to be_present
+          expect(group.css("turbo-frame[src*='/#{resource}/#{record.id}/']")).not_to be_empty
+        end
+      end
+    end
+
+    it "only shows the Details tab when creating #{resource}" do
+      sign_in_user
+      get "/resources/#{resource}/new"
+      expect(response).to have_http_status(:ok)
+      tabs = Nokogiri::HTML(response.body).css('[role="tablist"]').first
+      expect(tabs.css('[role="tab"]').map(&:text).map(&:strip)).to eq([ "Details" ])
+    end
+  end
+
+  it "preserves customer and sales order index columns" do
+    sign_in_user
+    customer = create(:customer, name: "Index Customer", email: "index@example.com")
+    order = create(:sales_order, customer: customer, status: :confirmed)
+    create(:sales_order_item, sales_order: order, quantity: 2, unit_price: "12.34")
+
+    get "/resources/customers"
+    table = Nokogiri::HTML(response.body).at_css("table")
+    expect(table.text).to include(customer.name, customer.email)
+
+    get "/resources/sales_orders"
+    table = Nokogiri::HTML(response.body).at_css("table")
+    expect(table.text).to include(customer.name, "confirmed", "24.68")
+  end
+
+  it "lists only the current customer's multiple addresses" do
+    sign_in_user
+    customer = create(:customer)
+    create(:address, customer: customer, line1: "Billing Street")
+    create(:address, customer: customer, line1: "Shipping Street")
+    create(:address, line1: "Other Customer Street")
+
+    get "/resources/customers/#{customer.id}/edit"
+    frame = Nokogiri::HTML(response.body).at_css("turbo-frame#has_many_field_show_addresses")
+    get frame["src"]
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include("Billing Street", "Shipping Street")
+    expect(response.body).not_to include("Other Customer Street")
+  end
+
+  it "lists only the current sales order's items" do
+    sign_in_user
+    order = create(:sales_order)
+    product = create(:product, name: "Ordered Product")
+    create(:sales_order_item, sales_order: order, product: product)
+    create(:sales_order_item, product: create(:product, name: "Other Order Product"))
+
+    get "/resources/sales_orders/#{order.id}/edit"
+    frame = Nokogiri::HTML(response.body).at_css("turbo-frame#has_many_field_show_sales_order_items")
+    get frame["src"]
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include("Ordered Product")
+    expect(response.body).not_to include("Other Order Product")
+  end
+
   it "allows a user to create, edit, and delete a customer" do
     sign_in_user
     expect do

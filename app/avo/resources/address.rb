@@ -1,5 +1,6 @@
 class Avo::Resources::Address < Avo::BaseResource
   self.title = :display_name
+  self.visible_on_sidebar = false
 
   def fields
     field :id, as: :id
