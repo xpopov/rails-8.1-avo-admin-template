@@ -17,6 +17,39 @@ RSpec.describe "Application access", type: :request do
     expect(input["type"]).to eq("text")
   end
 
+  [ "/login", "/create-account", "/reset-password-request" ].each do |path|
+    it "renders #{path} with the authentication layout and stylesheet" do
+      get path
+      expect(response).to have_http_status(:ok)
+      page = Nokogiri::HTML(response.body)
+      expect(page.at_css('html[lang="en"]')).to be_present
+      expect(page.at_css("main.auth-card h1").text).to be_present
+      expect(page.at_css("form.rodauth")).to be_present
+      stylesheet = page.at_css('link[rel="stylesheet"][href*="authentication"]')
+      expect(stylesheet).to be_present
+
+      get stylesheet["href"]
+      expect(response).to have_http_status(:ok)
+      expect(response.media_type).to eq("text/css")
+      expect(response.body).to include(".auth-page", ":focus-visible")
+    end
+  end
+
+  it "renders login errors in the authentication layout" do
+    post "/login", params: { email: "missing@example.com", password: "incorrect" }
+    expect(response).to have_http_status(:unauthorized)
+    page = Nokogiri::HTML(response.body)
+    expect(page.at_css('.auth-flash[role="alert"]').text).to be_present
+    expect(page.at_css('input[aria-invalid="true"]')).to be_present
+  end
+
+  it "uses the authentication layout for signed-in account settings" do
+    sign_in
+    get "/change-password"
+    expect(response).to have_http_status(:ok)
+    expect(Nokogiri::HTML(response.body).at_css("main.auth-card form.rodauth")).to be_present
+  end
+
   it "serves Avo account resources at the root mount" do
     sign_in(admin: true)
     get "/resources/accounts"
