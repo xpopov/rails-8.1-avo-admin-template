@@ -22,13 +22,13 @@ default: &default
 
 development:
   <<: *default
-  database: portal_development
+  database: rails_8_avo_development
 
   # The specified database role being used to connect to PostgreSQL.
   # To create additional roles in PostgreSQL see `$ createuser --help`.
   # When left blank, PostgreSQL will use the default role. This is
   # the same name as the operating system user running Rails.
-  #username: portal
+  #username: rails_8_avo
 
   # The password associated with the PostgreSQL role (username).
   #password:
@@ -56,7 +56,7 @@ development:
 # Do not set this db to the same as development or production.
 test:
   <<: *default
-  database: portal_test
+  database: rails_8_avo_test
 
 # As with config/credentials.yml, you never want to store sensitive information,
 # like your database password, in your source code. If your source code is
@@ -80,6 +80,6 @@ test:
 #
 production:
   <<: *default
-  database: portal_production
-  username: portal
-  password: <%= ENV["PORTAL_DATABASE_PASSWORD"] %>
+  database: rails_8_avo_production
+  username: rails_8_avo
+  password: <%= ENV["RAILS_8_AVO_DATABASE_PASSWORD"] %>

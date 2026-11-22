@@ -5,6 +5,9 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 jobs:
   scan_ruby:
     runs-on: ubuntu-latest
@@ -26,18 +29,15 @@ jobs:
       
   scan_js:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          bundler-cache: true
-
-      - name: Scan for security vulnerabilities in JavaScript dependencies
-        run: bin/importmap audit
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - name: Scan JavaScript dependencies
+        run: npm audit
 
   lint:
     runs-on: ubuntu-latest
@@ -90,14 +90,29 @@ jobs:
           --health-retries 5
     env:
       RAILS_ENV: test
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/portal_test
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/rails_8_avo_test
       REDIS_URL: redis://localhost:6379/1
     steps:
       - uses: actions/checkout@v6
       - uses: ruby/setup-ruby@v1
         with:
           bundler-cache: true
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
       - name: Prepare database
         run: bin/rails db:prepare
-      - name: Run RSpec
+      - name: Build test frontend
+        run: bin/vite build
+      - name: Run request and headless Chrome system specs
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
         run: bundle exec rspec
+      - name: Check production asset compilation
+        env:
+          RAILS_ENV: production
+          SECRET_KEY_BASE_DUMMY: "1"
+          VITE_RUBY_SKIP_ASSETS_PRECOMPILE_INSTALL: "true"
+        run: bin/rails assets:precompile
