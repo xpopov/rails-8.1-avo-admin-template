@@ -15,7 +15,7 @@ gem "turbo-rails"
 gem "stimulus-rails"
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 gem "jbuilder"
-gem "redis", "~> 5.4"
+gem "redis", "~> 6.0"
 gem "rodauth-rails", "~> 2.2"
 gem "avo", "~> 4.4"
 gem "sidekiq", "~> 8.1"
