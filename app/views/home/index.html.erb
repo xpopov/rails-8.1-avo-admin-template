@@ -1,0 +1,12 @@
+<h1>Portal</h1>
+<% if rodauth.logged_in? %>
+  <p>Signed in as <%= rodauth.rails_account.email %></p>
+  <% if rodauth.rails_account.admin? %>
+    <nav><%= link_to "Admin", "/avo" %> | <%= link_to "Background jobs", "/sidekiq" %></nav>
+  <% end %>
+  <p><%= link_to "Account settings", rodauth.change_password_path %></p>
+  <%= button_to "Sign out", rodauth.logout_path %>
+<% else %>
+  <%= link_to "Sign in", rodauth.login_path %> |
+  <%= link_to "Create account", rodauth.create_account_path %>
+<% end %>
