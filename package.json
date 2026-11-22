@@ -1,0 +1,23 @@
+{
+  "name": "rails-8-avo",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@hotwired/stimulus": "^3.2.2",
+    "@hotwired/turbo-rails": "^8.0.20"
+  },
+  "devDependencies": {
+    "vite": "^8.3.8",
+    "vite-plugin-ruby": "^5.2.6",
+    "vite-plugin-full-reload": "^1.2.0",
+    "vite-plugin-stimulus-hmr": "^3.0.0",
+    "sass-embedded": "^1.0.0"
+  }
+}
