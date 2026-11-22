@@ -18,7 +18,7 @@ RSpec.describe "Application access", type: :request do
   end
 
   [ "/login", "/create-account", "/reset-password-request" ].each do |path|
-    it "renders #{path} with the authentication layout and stylesheet" do
+    it "renders #{path} with the authentication layout and stylesheet", public_registration: path == "/create-account" do
       get path
       expect(response).to have_http_status(:ok)
       page = Nokogiri::HTML(response.body)

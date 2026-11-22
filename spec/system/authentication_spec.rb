@@ -17,12 +17,26 @@ RSpec.describe "Authentication", type: :system, public_registration: true do
     fill_in "password-confirm", with: password
   end
 
+  it "keeps the sign-in form usable on a narrow screen" do
+    page.current_window.resize_to(390, 844)
+    visit "/login"
+
+    expect(page).to have_css("main.auth-card form.rodauth")
+    expect(page.evaluate_script("document.documentElement.scrollWidth <= window.innerWidth")).to be(true)
+    expect(page.evaluate_script("getComputedStyle(document.querySelector('#login')).fontSize")).to eq("16px")
+    expect(page.evaluate_script("document.querySelector('input[type=submit]').getBoundingClientRect().height")).to be >= 44
+  ensure
+    page.current_window.resize_to(1400, 1000)
+  end
+
   it "lets an administrator sign in, open Avo, and sign out" do
     account = User.create!(email: "admin@example.com", status: :verified, password: password, admin: true)
     visit "/resources/users"
     expect(page).to have_current_path("/login")
     expect(page.evaluate_script("Boolean(window.Turbo && window.Stimulus)")).to be(true)
-    expect(page.evaluate_script("getComputedStyle(document.body).color")).to eq("rgb(30, 41, 59)")
+    expect(page).to have_css("main.auth-card h1", text: "Sign in to rails-8-avo")
+    expect(page.evaluate_script("getComputedStyle(document.body).color")).to eq("rgb(23, 36, 59)")
+    expect(page.evaluate_script("getComputedStyle(document.querySelector('input[type=submit]')).backgroundColor")).to eq("rgb(37, 99, 235)")
 
     fill_in "email", with: account.email
     fill_in "password", with: password

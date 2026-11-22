@@ -1,26 +1,28 @@
+<% application_name = Avo.configuration.app_name %>
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title><%= @page_title || "Account" %> · Portal</title>
+    <title><%= @page_title || "Account" %> · <%= application_name %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
     <%= yield :head %>
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
-    <%= stylesheet_link_tag "authentication", "data-turbo-track": "reload" %>
-    <%= javascript_importmap_tags %>
+    <%= vite_client_tag %>
+    <%= vite_stylesheet_tag "authentication.css", "data-turbo-track": "reload" %>
+    <%= vite_javascript_tag "application", "data-turbo-track": "reload" %>
   </head>
 
   <body class="auth-page">
     <div class="auth-shell">
       <header class="auth-brand">
-        <%= link_to "/", class: "auth-brand-link", "aria-label": "Portal home" do %>
+        <%= link_to "/", class: "auth-brand-link", "aria-label": "#{application_name} home" do %>
           <span class="auth-brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none">
               <path d="M5 20V4h14v16M10 20V9h9M3 20h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </span>
-          <span>Portal</span>
+          <span><%= application_name %></span>
         <% end %>
         <span class="auth-brand-label">Workspace access</span>
       </header>
@@ -28,8 +30,8 @@
       <main class="auth-card" aria-labelledby="auth-title">
         <div class="auth-heading">
           <p class="auth-eyebrow"><%= rodauth.current_route == :login ? "Welcome back" : "Your account" %></p>
-          <h1 id="auth-title"><%= rodauth.current_route == :login ? "Sign in to Portal" : @page_title || "Your account" %></h1>
-          <p class="auth-description"><%= rodauth.current_route == :login ? "Enter your details to continue to your workspace." : "Manage your access to the Portal workspace." %></p>
+          <h1 id="auth-title"><%= rodauth.current_route == :login ? "Sign in to #{application_name}" : @page_title || "Your account" %></h1>
+          <p class="auth-description"><%= rodauth.current_route == :login ? "Enter your details to continue to your workspace." : "Manage your access to the #{application_name} workspace." %></p>
         </div>
 
         <% flash.each do |type, message| %>
@@ -48,7 +50,7 @@
         <% end %>
       </main>
 
-      <footer class="auth-footer">Portal <span aria-hidden="true">/</span> Administration</footer>
+      <footer class="auth-footer"><%= application_name %> <span aria-hidden="true">/</span> Administration</footer>
     </div>
   </body>
 </html>
