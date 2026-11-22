@@ -133,9 +133,11 @@ real credentials, customer data, or production integrations.
 
 ## Temporary Cloudflare preview
 
-A free Quick Tunnel needs no Cloudflare account or API token:
+A free Quick Tunnel needs no Cloudflare account or API token. Build frontend
+assets first, and use a disposable demo database with a non-default admin password:
 
 ```sh
+npm run build
 cloudflared tunnel --url http://127.0.0.1:3000 --no-autoupdate
 ```
 
@@ -146,7 +148,8 @@ PUBLIC_PREVIEW_HOST=your-assigned-host.trycloudflare.com bin/rails server -b 127
 ```
 
 `PUBLIC_PREVIEW_HOST` allows that exact hostname, disables detailed development
-error pages, and uses the HTTPS hostname for mailer links. Do not clear Rails'
+error pages, uses built production frontend assets instead of the Vite development
+filesystem proxy, and uses the HTTPS hostname for mailer links. Do not clear Rails'
 host allowlist. Keep Rails and cloudflared running; the URL expires when the
 tunnel stops and normally changes when restarted. This is not a production
 deployment or an authentication boundary. Anyone with the URL can visit the app.
