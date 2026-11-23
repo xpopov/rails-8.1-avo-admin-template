@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_22_160000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_23_001000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "pg_catalog.plpgsql"
@@ -61,6 +61,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_160000) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "log_entries", force: :cascade do |t|
+    t.text "message", null: false
+    t.integer "type", null: false
+    t.string "section"
+    t.string "tags"
+    t.string "exception_class"
+    t.jsonb "details", default: {}, null: false
+    t.integer "severity"
+    t.datetime "notified_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["section"], name: "index_log_entries_on_section"
+    t.index ["severity"], name: "index_log_entries_on_severity"
+    t.index ["type"], name: "index_log_entries_on_type"
+  end
+
   create_table "products", force: :cascade do |t|
     t.string "name", null: false
     t.string "sku", null: false
@@ -94,7 +110,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_160000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["customer_id"], name: "index_sales_orders_on_customer_id"
-    t.check_constraint "status::text = ANY (ARRAY['draft'::character varying, 'confirmed'::character varying, 'completed'::character varying, 'cancelled'::character varying]::text[])", name: "sales_orders_valid_status"
+    t.check_constraint "status::text = ANY (ARRAY['draft'::character varying::text, 'confirmed'::character varying::text, 'completed'::character varying::text, 'cancelled'::character varying::text])", name: "sales_orders_valid_status"
   end
 
   create_table "users", force: :cascade do |t|
